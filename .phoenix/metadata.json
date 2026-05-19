@@ -4,10 +4,14 @@
   "base_commit": "26c9810354b09c183c129fd89d6e0a5d87c84b93",
   "language": "Go",
   "task_title": "fix: Bloom index gateway skipping chunks with 1 log line",
-  "task_type": "",
-  "problem_statement": "",
-  "problem_statement_variant": "",
-  "fail_to_pass": [],
-  "pass_to_pass": [],
+  "task_type": "bug_fix",
+  "problem_statement": "Loki's bloom index gateway exposes an endpoint that filters a set of chunk references down to those whose bloom filters match a query's line filters. The endpoint short-circuits any request whose start and end time bounds are equal, returning an empty response without consulting the underlying bloom filters. This shortcut is incorrect: a chunk containing a single log entry has identical start and end timestamps, so a filter request scoped to that chunk legitimately has equal time bounds. Whenever a query targets such a single-entry chunk, the gateway silently drops it, producing search results that are missing log lines which should have been returned. The endpoint must process these requests like any other non-inverted time range.",
+  "problem_statement_variant": "When a log search in Loki targets a chunk that holds only a single log line, the bloom index incorrectly treats the request as empty and removes that chunk from the results. As a result, single-line chunks are missing from query responses even though they should match.",
+  "fail_to_pass": [
+    "pkg/bloomgateway/bloomgateway_test.go::TestBloomGateway_FilterChunkRefs/returns_unfiltered_chunk_refs_when_From_equals_Through"
+  ],
+  "pass_to_pass": [
+    "pkg/bloomgateway/bloomgateway_test.go::TestBloomGateway_FilterChunkRefs/returns_unfiltered_chunk_refs_if_no_filters_provided"
+  ],
   "hints": []
 }
