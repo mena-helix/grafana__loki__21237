@@ -220,14 +220,6 @@ func (g *Gateway) FilterChunkRefs(ctx context.Context, req *logproto.FilterChunk
 		sp.End()
 	}()
 
-	// start time == end time --> empty response
-	if req.From.Equal(req.Through) {
-		stats.Status = labelSuccess
-		return &logproto.FilterChunkRefResponse{
-			ChunkRefs: []*logproto.GroupedChunkRefs{},
-		}, nil
-	}
-
 	// start time > end time --> error response
 	if req.Through.Before(req.From) {
 		stats.Status = labelFailure

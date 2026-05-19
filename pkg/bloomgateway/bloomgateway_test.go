@@ -320,6 +320,40 @@ func TestBloomGateway_FilterChunkRefs(t *testing.T) {
 		}, res)
 	})
 
+	t.Run("returns unfiltered chunk refs when From equals Through", func(t *testing.T) {
+		// A chunk that contains a single log line has From == Through, so a
+		// filter request scoped to such a chunk legitimately has the same
+		// invariant on its time bounds. The gateway must not short-circuit
+		// these requests and drop the chunk.
+		now := mktime("2023-10-03 10:00")
+
+		reg := prometheus.NewRegistry()
+		gw, err := New(cfg, newMockBloomStore(nil, nil, nil), logger, reg)
+		require.NoError(t, err)
+
+		err = services.StartAndAwaitRunning(context.Background(), gw)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			err = services.StopAndAwaitTerminated(context.Background(), gw)
+			require.NoError(t, err)
+		})
+
+		chunkRefs := []*logproto.ChunkRef{
+			{Fingerprint: 1000, UserID: tenantID, From: now, Through: now, Checksum: 7},
+		}
+		req := &logproto.FilterChunkRefRequest{
+			From:    now,
+			Through: now,
+			Refs:    groupRefs(t, chunkRefs),
+		}
+
+		ctx := user.InjectOrgID(context.Background(), tenantID)
+		res, err := gw.FilterChunkRefs(ctx, req)
+		require.NoError(t, err)
+		require.NotEmpty(t, res.ChunkRefs, "single-line chunk must not be dropped when request From == Through")
+		require.Equal(t, req.Refs, res.ChunkRefs)
+	})
+
 	t.Run("gateway tracks active users", func(t *testing.T) {
 		now := mktime("2023-10-03 10:00")
 
